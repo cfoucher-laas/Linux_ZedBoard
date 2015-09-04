@@ -1,0 +1,473 @@
+%\documentclass[obeyspaces,openany,a4paper]{book}
+\documentclass[openany,a4paper]{book}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+%\usepackage[toc,page]{appendix}
+\usepackage[]{color}
+\usepackage{a4wide}
+\usepackage{menukeys}
+\usepackage[pdftex]{hyperref}
+
+\definecolor{darkblue}{rgb}{0,0,0.5}
+\definecolor{darkgreen}{rgb}{0,0.5,0}
+
+% Url command stle (used in document for paths)
+\renewcommand\UrlFont{\color{blue}\ttfamily}
+
+% Line skip at § start
+\setlength{\parskip}{1ex plus .4ex minus .4ex}
+
+% Configure document metainformations
+\hypersetup
+{
+%	bookmarks=true,
+	unicode=true,
+	colorlinks=true,
+	linkcolor=blue,
+	citecolor=darkblue,
+	urlcolor=darkgreen,
+	pdftitle={Installing Embedded Linux on ZedBoard},
+	pdfauthor={Clément Foucher}
+}
+
+% Document header information
+\title{Installing Embedded Linux on ZedBoard}
+\author
+{
+        Version 1.0\\
+        \\
+        \\
+	Clément Foucher (\href{https://homepages.laas.fr/cfoucher}{homepage})\\
+	\href{mailto:Clement.Foucher@laas.fr}{Clement.Foucher@laas.fr}\\
+	\\
+	LAAS--CNRS\\
+	\href{https://www.laas.fr/public/en}{Laboratoire d'analyse et d'architecture des syst\`emes}
+}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Before starting}
+
+Please read this chapter carefully before starting, as it contains valuable information that you'll require all along this document.
+
+\section{Document purpose}
+
+This document is a tutorial describing how to build an Embedded Linux system for use on a ZedBoard development board.
+Following this procedure, you'll obtain an Embedded Linux running on a persistent file system, which you can use as a base for your further developements.
+This tutorial describes every needed step, from scratch to a running system, and provides scripts to automate every step.
+
+All needed tools are open-source and can be downloaded using the scripts provided with this tutorial, except for Xilinx Vivado which requires a license.
+
+You should have obtained this document inside an archive containing the scripts and other files used in the procedure.
+If you don't have this archive, you can download it at this address: \url{...}.
+
+\textbf{TODO: Address of document}
+
+%%%
+
+\section{Disclaimer}
+
+The procedure depicted in this document is intended to help you build an Embedded Linux system whatever your knowledge of the Linux system is.
+
+It should be relatively safe, but some steps require advanced manipulations on your host system, ZedBoard platform and related peripherals, including the SD card provided with ZedBoard.
+
+The author or its institution cannot be held responsible for any harm caused to your host system, ZedBoard platform or any element manipulated by the following tutorial.
+
+Moreover, the author can't be held responsible for english mispelling that is probably present in this document ;-).
+Plase inform me of any error using my e-mail on the front page.
+
+%%%
+
+\section{Tools revisions and OS}
+
+The procedure described in this document has been conducted using Xilinx Vivado 2015.2 on Fedora 22 Workstation 64 bits.
+Some steps of the procedure are closely related to tools version, so I cannot guarantee this tutorial will work using a different version of Vivado or any other tool used in this tutorial.
+
+If your system does not run a native Linux OS, you can install for free a Linux virtual machine.
+The hardware generation steps, involving Xilinx tools, can be run using Windows in order to avoid running heavy tools in a virtual environment.
+Nevertheless, in such a case, you'll still neeed a Vivado installation on your virtual Linux to provide the ARM cross-compilation toolchain.
+
+%%%
+
+\section{Administrator permissions}
+
+Some of the manipulations described in this document require root privileges.
+When so, we use the \texttt{sudo} command in order to get administrator permissions for the current command.
+
+These commands require entering your password to work, and the current used must be registered in the sudo permissions list.
+
+%%%
+
+\section{Conventions and directories}\label{section_directories}
+
+\textbf{TODO: Reformuler cette section: on a peut-re plus bnesoin de quoi que ce soit à part basedir.}
+
+Texts beginning by \texttt{\$} are shell commands to be typed in the console.
+Other texts written using \texttt{monospaced characters} are to be typed as it.
+Paths are displayed in \nolinkurl{monospaced} \nolinkurl{blue}.
+Paths ending with a \nolinkurl{/} are directories (E.g., \nolinkurl{<$BASEDIR>/scripts/}), while the others are files (E.g., \nolinkurl{<$BASEDIR>/scripts/initialize_project.sh}).
+
+The \textit{host} system is the system used to generate the files, while the \textit{target} system is the Embedded Linux system that will be generated.
+
+Some specific directories will be used on the host system during the tutorial:
+\begin{itemize} 
+\item \nolinkurl{$BASEDIR} is the base working directory provided in the archive coming with this tutorial. The current file is located in \nolinkurl{<$BASEDIR>/doc/}.
+\item \nolinkurl{$MOUNTDIR} is a directory used to mount elements on the host system. While it can be any empty directory, \nolinkurl{/mnt/} is usually chosen for this purpose. Anyway, any \textbf{empty} folder can be used as a mount directory.
+%\item \nolinkurl{$INSTALLDIR} is the directory used in the host system to install software. It is usually \nolinkurl{/opt/}, but depends on you system configuration and can be personalized.
+\end{itemize}
+
+%\textbf{TODO: Check if /opt utile}
+
+In the current tutorial, we use the syntax \nolinkurl{<$DIRECTORY>} to refer to paths defined above.
+These are to be replaced by the user when doing the manipulation using matching directory.
+E.g., if the base directory is located in \nolinkurl{/home/user/ZedBoard/}, user has to understand occurrences of \nolinkurl{<$BASEDIR>/scripts/} as \nolinkurl{/home/user/ZedBoard/scripts/}.
+
+%%%
+
+\section{Environment packages and libraries}
+
+Many packages are required on the host system to execute this procedure.
+Here are the main ones, but some other may be required depending on your configuration:
+\begin{itemize}
+\setlength\parskip{0pt}
+\item gcc
+\item gcc-c++
+\item git
+%\item flex
+%\item qt4-devel
+%\item libXi-devel
+%\item ncurses-devel
+%\item libxml2-devel
+%\item libcanberra-module
+%\item uboot-tools
+%\item bison
+%\item texinfo
+%\item subversion
+%\item wget
+%\item patch
+%\item gparted
+%\item glibc.i686 (\textit{64-bits hosts only})
+\end{itemize}
+
+Before starting, type the following for each library in order to ensure all needed libraries are available on your system.
+\begin{tabbing}
+\kill \hspace{1cm} \= \\
+\> \texttt{\$ sudo dnf install \textit{$<$library$>$}} \\
+\end{tabbing}
+
+\textbf{TODO: provide a complete command line}
+
+%%%
+
+\section{Downloading required sources}
+
+Apart from the libraries required by the host, some sources are used in this procedure which are not provided in the archive (E.g. Linux kernel, boot loader, etc.).
+The first time a script is run, these elements will be downloaded.
+If you just want to download some or all sources in order to use them manually or for any other reason, I provide a dedicated script you can use as follows:
+
+\begin{tabbing}
+\kill \hspace{1cm} \= \\
+\> \texttt{\$ cd $<$\$BASEDIR$>$/scripts}\\
+\> \texttt{\$ ./download\_sources.sh}\\
+\end{tabbing}
+
+And follow the instructions from there.
+
+Note that this script will not download already existing sources.
+If for any reason you want to force source re-download, please delete or move existing source before launching this script.
+
+%%%
+
+\section{Projects}
+
+A project is a set of both hardware design and software environment generation.
+Projects are located in \nolinkurl{<$BASEDIR>/projects/}.
+The base folder of project $<$project\_name$>$ will be \nolinkurl{<$BASEDIR>/projects/<project_name>/}, and will be referred to as \nolinkurl{<$PROJECT_ROOT>}.
+
+%%%
+
+%\section{Scripts and logs}
+
+% TODO: Add logs to scripts
+
+%Most of the manipulations depicted in this documents provide a script to automate the procedure.
+%These scripts usually create a log file in \nolinkurl{<$PROJECT_ROOT>/logs/script_name.log}.
+
+%%%
+
+\section{Reinitializing the SD card to factory state}
+
+This section is only to be followed if you need to restore the SD card filesystem to its original state.
+It is not needed as part of this process, but it can be used to revert your SD card to its original state, as we modify its partition scheme during this procedure.
+
+\subsection{Restore partition scheme}
+
+Launch GParted.
+In the jumplist, select the entry matching your SD card (E.g., \nolinkurl{/dev/sdc/}).
+On each existing partitions, right-click, and select \menu{Unmount}.
+When all partitions are unmounted, select menu \menu{Device > Create Partition Table...}, make sure MS-DOS type is selected and click on \textit{Apply}.
+
+Right-click on the empty space, select \textit{New}, choose a \textit{fat32} file system and select \textit{Add}.
+Select \textit{Apply All Operations} and validate using \textit{Apply}.
+When finished, exit GParted.
+
+\subsection{Restore files}
+
+The card partition scheme is now ready, all you need now is to put back the original files on it.
+These files are contained in the archive provided at this address: \url{http://www.digilentinc.com/Data/Products/ZEDBOARD/ZedBoard_OOB_Design.zip}.
+Download it, expand it, and copy the content of folder \nolinkurl{sd_image/} back to the card.
+
+Your card is now ready as new.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Preparing the environment}\label{chapter_environment}
+
+\section{Configuring the scripts}
+
+First, file \nolinkurl{<$BASEDIR>/scripts/environment/project_root.sh} must be edited.
+It contains a variable called \textbf{BASEDIR}, which must refer to the path of the base directory as defined in \ref{section_directories}.
+
+When done, also edit file \nolinkurl{<$BASEDIR>/scripts/environment/environment.sh}.
+This file containes many variables that are to be used by other scripts.
+Each variable purpose is explained in the file, and must be set according to your host system configuration.
+
+Please take some time to ensure ALL variables in these files are correct, or scripts in this document will not work.
+Incorrect configuration may even result in harming your system for commands with administrator permissions, so be very careful.
+
+%%%
+
+\section{Creating the project}
+
+First, choose a project name (E.g., \textit{test\_project}).
+This name will have to be used in replacement of all \textit{$<$project\_name$>$} occurrences in this document.
+
+Open a shell and type:
+\begin{tabbing}
+\kill \hspace{1cm} \= \\
+\> \texttt{\$ cd $<$\$BASEDIR$>$/scripts}\\
+\> \texttt{\$ ./initialize\_project.sh $<$project\_name$>$}\\
+\end{tabbing}
+
+This will create the root folder of your project, as well as some sub-folders and files that will be used in the following steps.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Hardware layout}
+
+
+
+TODO
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Generating the software}
+
+\textbf{TODO: Edit intro}
+
+To boot, the board needs a .bin file, which is made of the bitstream, a boot loader and a first stage boot loader.
+In this chapter, we will generate the latter two.
+
+\section{Generating the kernel}
+
+The kernel contains the OS core, which is the very minimum to run on the board.
+
+\subsection{Default configuration using script}
+
+Open a shell and type:
+
+\begin{tabbing}
+\kill \hspace{1cm} \= \\
+\> \texttt{\$ cd $<$\$BASEDIR$>$/scripts} \\
+\> \texttt{\$ ./generate\_linux\_kernel\_default.sh $<$project\_name$>$}\\
+\end{tabbing}
+
+When done, the kernel image is located in \nolinkurl{<$PROJECT_ROOT>/output/linux_kernel/uImage}.
+
+\subsection{Detailed process}
+
+The procedure consists in getting the latest kernel version, and regressing to the correct branch, as follows:
+
+\begin{tabbing}
+\kill \hspace{1cm} \= \\
+\> \texttt{\$ git clone https://github.com/Xilinx/linux-xlnx.git linux_kernel} \\
+\> \texttt{\$ cd linux_kernel} \\
+\> \texttt{\$ git checkout xilinx-v2015.2.03} \\
+\end{tabbing}
+
+Then, copy the default device tree:
+
+\begin{tabbing}
+\kill \hspace{1cm} \= \\
+\> \texttt{\$ cp -f \$PROJECT\_ROOT/device\_tree/zynq\_devicetree.dts .}\\
+\end{tabbing}
+
+Finally, configure the kernel:
+
+\begin{tabbing}
+\kill \hspace{1cm} \= \\
+\> \texttt{\$ make distclean}\\
+\> \texttt{\$ make ARCH=arm xilinx\_zynq\_defconfig}\\
+\> \texttt{\$ make ARCH=arm xconfig}\\
+\end{tabbing}
+
+Then, set the configuration as you want.
+I personally set the following configuration to make sure system is very light by removing elements I don't need:
+
+\begin{tabbing}
+\kill \ \ \ \= \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \= \ \ \ \ \ \ \ \ \ \ \= \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \= \ \ \ \ \ \ \ \ \ \= \ \ \ \ \ \ \ \ \ \ \ \ \= \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \= \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \= \\
+\> General setup      \> $\rightarrow$ Initial RAM filesystem and RAM disk (initramfs/initrd) support \>\>\>\>\>\> $\rightarrow$ NO \\
+\> Device drivers     \> $\rightarrow$ Block devices          \>\>\> $\rightarrow$ RAM block device support \>\>\> $\rightarrow$ NO \\
+\>                    \> $\rightarrow$ Network device support \>\>\> $\rightarrow$ Wireless lan             \>\>\> $\rightarrow$ NO \\
+\> Networking support \> $\rightarrow$ Wireless               \>\> $\rightarrow$ NO \\
+\> File systems       \> $\rightarrow$ Network file system    \>\> $\rightarrow$ NO \\
+\end{tabbing}
+
+Save, then build the image using the following command:
+
+\begin{tabbing}
+\kill \hspace{1cm} \= \\
+\> \texttt{\$ make ARCH=arm UIMAGE\_LOADADDR=0x8000 uImage }\\
+\end{tabbing}
+
+\textbf{ TODO: COPIER LE RESULTAT}
+
+\section{Generating the file system}
+
+\subsection{Default configuration using script}
+
+Open a shell and type:
+
+\begin{tabbing}
+\kill \hspace{1cm} \= \\
+\> \texttt{\$ cd $<$\$BASEDIR$>$/scripts} \\
+\> \texttt{\$ ./generate\_file\_system\_default.sh $<$project\_name$>$}
+\end{tabbing}
+
+When done, the generated file system is located in \nolinkurl{<$PROJECT_ROOT>/output/file_system/rootfs.ext4}.
+
+\subsection{Detailed process}
+
+
+The procedure consists in downloading Buildroot, configuring it, and generating the file system.
+
+First, download Buildroot using the following commands:
+
+  git clone $BUILDROOTURL $FSSOURCES
+  cd $FSLSOURCES
+  git checkout $BUILDROOTGITTAB
+
+\begin{tabbing}
+\kill \hspace{1cm} \= \\
+\> \texttt{\$ git clone git://git.buildroot.net/buildroot buildroot} \\
+\> \texttt{\$ cd buildroot} \\
+\> \texttt{\$ git checkout 2015.08} \\
+\end{tabbing}
+
+Then, launch the configuration tool using the following command:
+
+\begin{tabbing}
+\kill \hspace{1cm} \= \\
+\> \texttt{\$ make xconfig}\\
+\end{tabbing}
+
+From there, set the configuration as you want.
+I personally set the following configuration for my needs:
+
+\textbf{TODO: séparer config nécessaire et config additionnelle}
+
+\begin{tabbing}
+\kill \ \ \ \= \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \= \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \= \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \= \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \= \ \ \ \ \ \ \ \= \\
+\> Target Architecture                \>                                                             \>                                                          \> $\rightarrow$ ARM (little endian) \\
+\> Target Architecture Variant        \>                                                             \>                                                          \> $\rightarrow$ cortex-A9 \\
+\> Enable NEON SIMD extension support \>                                                             \>                                                          \>                                                          \> $\rightarrow$ YES \\
+\> Build options                      \> $\rightarrow$ Show packages that are deprecated or obsolete \>                                                          \>                                                          \> $\rightarrow$ YES \\
+\>                                    \> $\rightarrow$ development files in target filesystem        \>                                                          \>                                                          \> $\rightarrow$ YES \\
+\> Toolchain                          \> $\rightarrow$ Kernel Headers                                \>                                                          \> $\rightarrow$ Linux 3.8.x kernel headers \\
+\>                                    \> $\rightarrow$ GCC compiler Version                          \>                                                          \> $\rightarrow$ gcc 4.6.x \\
+\>                                    \> $\rightarrow$ Use software floating point by default        \>                                                          \>                                                          \> $\rightarrow$ NO \\
+%\>                                    \> $\rightarrow$ uClibc C library Version                      \>                                                          \> $\rightarrow$ uClibc 0.9.31.x \\
+\>                                    \> $\rightarrow$ Enable large file (files $>$ 2 GB) support    \>                                                          \>                                                          \> $\rightarrow$ YES \\
+\>                                    \> $\rightarrow$ Enable WCHAR support                          \>                                                          \>                                                          \> $\rightarrow$ YES \\
+\>                                    \> $\rightarrow$ Thread library implementation                 \>                                                          \>                                                          \> $\rightarrow$ linuxthreads (stable/old) \\
+%\>                                    \> $\rightarrow$ Use ARM Vector Floating Point unit            \>                                                          \>                                                          \> $\rightarrow$ YES \\
+\> System configuration               \>                                                             \> $\rightarrow$ System hostname:                           \>                                                          \> $\rightarrow$ zeboard-00 \\
+\>                                    \>                                                             \> $\rightarrow$ Port to run a getty (login prompt) on:     \>                                                          \> $\rightarrow$ ttyPS0 \\
+\> Package Selection for the target \\
+\>                                    \> $\rightarrow$ Development tools                             \>                                                          \> $\rightarrow$ gcc                                        \> $\rightarrow$ YES \\
+\>                                    \> $\rightarrow$ Libraries                                     \> $\rightarrow$ JSON/XML                                   \> $\rightarrow$ libxml2                                    \> $\rightarrow$ YES \\
+\>                                    \> $\rightarrow$ Networking applications                       \>                                                          \> $\rightarrow$ openssh                                    \> $\rightarrow$ YES \\
+\> Filesystem images                  \> $\rightarrow$ ext2/3/4 root filesystem                      \>                                                          \> $\rightarrow$ YES \\
+\>                                    \>                                                             \>                                                          \> $\rightarrow$ ext2/3/4 variant                           \> $\rightarrow$ ext4 \\
+\>                                    \> $\rightarrow$ tar the root filesystem                       \>                                                          \> $\rightarrow$ NO \\
+\end{tabbing}
+
+Save, close, and type:
+
+\begin{tabbing}
+\kill \hspace{1cm} \= \\
+\> \texttt{\$ make}\\
+\end{tabbing}
+
+\textbf{ TODO: COPIER LE RESULTAT}
+
+\section{Generating the bootloader}
+
+
+\subsection{Ethernet configuration}
+
+If the board has to be used on a Ethernet network, you'll need to define a MAC address for the board.
+Open file \nolinkurl{<$PROJECT_ROOT>/bootloader/zynq_common.h}, edit line 211 to introduce the MAC address desired for the board, and save the file.
+
+If you have no use of the network, just ignore this step.
+
+\subsection{Default configuration using script}
+
+Open a shell and type:
+\begin{tabbing}
+\kill \hspace{1cm} \= \\
+\> \texttt{\$ cd $<$\$BASEDIR$>$/scripts} \\
+\> \texttt{\$ ./generate\_bootloader.sh $<$project\_name$>$}\\
+\end{tabbing}
+
+\subsection{Detailed process}
+
+TODO: Voir pour fichier zync\_common.h
+
+%%%
+
+\section{Generating the First Stage Boot Loader}
+
+The First Stage Boot Loader (FSBL) is in charge of the early board configuration.
+
+Open the PlanAhead project.
+Select \menu{File > Export > Export Hardware for SDK}.
+In the window, check both \textit{Export Hardware} and \textit{Launch SDK}, and validate using \textit{OK}.
+
+In XSDK, select \menu{File > New > Application Project}.
+Set project name \textit{FSBL}, make sure \textit{OS Platform} is standalone and \textit{Language} is C, then click \menu{Next}.
+Select template \textit{Zynq FSBL} and then \menu{Finish}.
+
+Right-click on the \textit{FSBL} project, and select \menu{Build Configuration > Set Active > Release}.
+Right-click again and select \menu{Clean Project}.
+
+\subsection{Detailed process}
+
+
+% Normal procedure:
+% Git on Xilinx Uboot repository
+% Do a git checkout on 14.5 branch
+% make procedure (check script)
+
+\end{document}
+
+
