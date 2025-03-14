@@ -1,0 +1,2 @@
+Scipts in this folder are used as helper for main scripts.
+They should *NOT* be run directly from a command line.

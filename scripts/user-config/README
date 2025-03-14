@@ -1,0 +1,2 @@
+Environment script is used to take account of the environment in which main scripts are run.
+This script *MUST* be edited prior to any other script run.

@@ -1,0 +1,3 @@
+generate_device_tree_2016.4.tcl export-ignore
+generate_first_stage_boot_loader_2016.4.tcl export-ignore
+.gitattributes export-ignore

@@ -1,0 +1,21 @@
+--- zynq-common.h	2015-05-27 10:59:31.000000000 +0200
++++ zynq-common.h	2015-09-10 14:41:51.380960901 +0200
+@@ -268,7 +268,7 @@
+ 	"devicetree_size=0x20000\0"	\
+ 	"ramdisk_size=0x5E0000\0"	\
+ 	"boot_size=0xF00000\0"	\
+-	"fdt_high=0x20000000\0"	\
++	"fdt_high=0x19000000\0"	\
+ 	"initrd_high=0x20000000\0"	\
+ 	"bootenv=uEnv.txt\0" \
+ 	"loadbootenv=load mmc 0 ${loadbootenv_addr} ${bootenv}\0" \
+@@ -311,8 +311,7 @@
+ 			"echo Copying Linux from SD to RAM... && " \
+ 			"load mmc 0 ${kernel_load_address} ${kernel_image} && " \
+ 			"load mmc 0 ${devicetree_load_address} ${devicetree_image} && " \
+-			"load mmc 0 ${ramdisk_load_address} ${ramdisk_image} && " \
+-			"bootm ${kernel_load_address} ${ramdisk_load_address} ${devicetree_load_address}; " \
++			"bootm ${kernel_load_address} - ${devicetree_load_address}; " \
+ 		"fi\0" \
+ 	"usbboot=if usb start; then " \
+ 			"run uenvboot; " \
